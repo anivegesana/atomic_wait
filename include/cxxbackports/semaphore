@@ -45,7 +45,7 @@ THE SOFTWARE.
 
 #ifndef __NO_SEM
 
-#if defined(__APPLE__) 
+#if defined(__APPLE__)
 
     #include <dispatch/dispatch.h>
 
@@ -88,7 +88,7 @@ THE SOFTWARE.
     #define __SEM_POST_ONE
     static constexpr ptrdiff_t __semaphore_max = SEM_VALUE_MAX;
     using __semaphore_sem_t = sem_t;
-    
+
     inline bool __semaphore_sem_init(__semaphore_sem_t &sem, int init) {
         return sem_init(&sem, 0, init) == 0;
     }
@@ -148,13 +148,14 @@ THE SOFTWARE.
 #endif
 
 namespace std {
+namespace experimental {
 
 class __atomic_semaphore_base {
 
     __semaphore_no_inline inline bool __fetch_sub_if_slow(ptrdiff_t old) {
         while (old != 0) {
             if (count.compare_exchange_weak(old, old - 1, std::memory_order_acquire, std::memory_order_relaxed))
-                return true; 
+                return true;
         }
         return false;
     }
@@ -172,12 +173,12 @@ class __atomic_semaphore_base {
             ptrdiff_t const old = count.load(std::memory_order_acquire);
             if(old != 0)
                 break;
-            atomic_wait_explicit(&count, old, std::memory_order_relaxed);
+            std::experimental::atomic_wait_explicit(&count, old, std::memory_order_relaxed);
         }
     }
     __semaphore_no_inline inline bool __acquire_slow_timed(std::chrono::nanoseconds const& rel_time) {
 
-        using __clock = std::conditional<std::chrono::high_resolution_clock::is_steady, 
+        using __clock = std::conditional<std::chrono::high_resolution_clock::is_steady,
                                          std::chrono::high_resolution_clock,
                                          std::chrono::steady_clock>::type;
 
@@ -197,8 +198,8 @@ class __atomic_semaphore_base {
     std::atomic<ptrdiff_t> count;
 
 public:
-    static constexpr ptrdiff_t max() noexcept { 
-        return std::numeric_limits<ptrdiff_t>::max(); 
+    static constexpr ptrdiff_t max() noexcept {
+        return std::numeric_limits<ptrdiff_t>::max();
     }
 
     __atomic_semaphore_base(ptrdiff_t count) : count(count) { }
@@ -211,9 +212,9 @@ public:
     inline void release(ptrdiff_t update = 1) {
         count.fetch_add(update, std::memory_order_release);
         if(update > 1)
-            atomic_notify_all(&count);
+            std::experimental::atomic_notify_all(&count);
         else
-            atomic_notify_one(&count);
+            std::experimental::atomic_notify_one(&count);
     }
     inline void acquire() {
         while (!try_acquire())
@@ -251,7 +252,7 @@ class __semaphore_base {
             auto const back_amount = __backbuffer.fetch_sub(2, std::memory_order_acquire);
             bool const post_one = back_amount > 0;
             bool const post_two = back_amount > 1;
-            auto const success = (!post_one || __semaphore_sem_post(__semaphore, 1)) && 
+            auto const success = (!post_one || __semaphore_sem_post(__semaphore, 1)) &&
                                  (!post_two || __semaphore_sem_post(__semaphore, 1));
             assert(success);
             if(!post_one || !post_two)
@@ -265,7 +266,7 @@ class __semaphore_base {
 #ifndef __NO_SEM_POLL
         ptrdiff_t old = __frontbuffer.load(std::memory_order_relaxed);
         if(!(old >> 32)) {
-            using __clock = std::conditional<std::chrono::high_resolution_clock::is_steady, 
+            using __clock = std::conditional<std::chrono::high_resolution_clock::is_steady,
                                              std::chrono::high_resolution_clock,
                                              std::chrono::steady_clock>::type;
             auto const start = __clock::now();
@@ -312,7 +313,7 @@ class __semaphore_base {
         bool const post_two = post_amount > 1;
         if(post_amount > 2)
             __backbuffer.fetch_add(post_amount - 2, std::memory_order_acq_rel);
-        auto const success = (!post_one || __semaphore_sem_post(__semaphore, 1)) && 
+        auto const success = (!post_one || __semaphore_sem_post(__semaphore, 1)) &&
                              (!post_two || __semaphore_sem_post(__semaphore, 1));
         assert(success);
     #else
@@ -338,7 +339,7 @@ public:
     static constexpr ptrdiff_t max() noexcept {
         return __semaphore_max;
     }
-    
+
     __semaphore_base(ptrdiff_t count = 0) : __semaphore()
 #ifndef __NO_SEM_FRONT
     , __frontbuffer(count << 32)
@@ -346,9 +347,9 @@ public:
 #ifndef __NO_SEM_BACK
     , __backbuffer(0)
 #endif
-    { 
+    {
         assert(count <= max());
-        auto const success = 
+        auto const success =
 #ifndef __NO_SEM_FRONT
             __semaphore_sem_init(__semaphore, 0);
 #else
@@ -401,10 +402,10 @@ public:
 #endif //__NO_SEM
 
 template<ptrdiff_t least_max_value>
-using semaphore_base = 
+using semaphore_base =
 #ifndef __NO_SEM
-    typename std::conditional<least_max_value <= __semaphore_base::max(), 
-                              __semaphore_base, 
+    typename std::conditional<least_max_value <= __semaphore_base::max(),
+                              __semaphore_base,
                               __atomic_semaphore_base>::type
 #else
     __atomic_semaphore_base
@@ -429,7 +430,7 @@ class __binary_semaphore_base {
 
     __semaphore_no_inline inline bool __acquire_slow_timed(std::chrono::nanoseconds const& rel_time) {
 
-        using __clock = std::conditional<std::chrono::high_resolution_clock::is_steady, 
+        using __clock = std::conditional<std::chrono::high_resolution_clock::is_steady,
                                          std::chrono::high_resolution_clock,
                                          std::chrono::steady_clock>::type;
 
@@ -462,7 +463,7 @@ public:
     }
     inline void acquire() {
         while (!__builtin_expect(try_acquire(), 1))
-            atomic_wait_explicit(&available, 0, std::memory_order_relaxed);
+            std::experimental::atomic_wait_explicit(&available, 0, std::memory_order_relaxed);
     }
 
     inline bool try_acquire() noexcept {
@@ -498,6 +499,7 @@ public:
 
 #endif // __NO_SEM
 
-using binary_semaphore = counting_semaphore<1>;
+using binary_semaphore = std::experimental::counting_semaphore<1>;
 
+}
 }

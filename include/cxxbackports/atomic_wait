@@ -57,6 +57,36 @@ The strategy is chosen this way, by platform:
 #ifndef __ATOMIC_WAIT_INCLUDED
 #define __ATOMIC_WAIT_INCLUDED
 
+#ifdef __cpp_lib_atomic_wait
+// copy them over to std::experimental so that MacOS doesn't complain about
+// name collisions for functions that they couldn't be bothered to implement
+// but defined anyway 9_9
+namespace std {
+namespace experimental {
+
+    template <class _Tp, class _Tv>
+    static inline void atomic_wait_explicit(atomic<_Tp> const* a, _Tv val, std::memory_order order) {
+        std::atomic_wait_explicit((const _Tp*)a, (_Tp)val, (int)order);
+    }
+    template <class _Tp, class _Tv>
+    static inline void atomic_wait(atomic<_Tp> const* a, _Tv val) {
+        std::atomic_wait(a, val);
+    }
+    template <class _Tp>
+    static inline void atomic_notify_one(atomic<_Tp> const* a) {
+        std::atomic_notify_one((const _Tp*)a);
+    }
+    template <class _Tp>
+    static inline void atomic_notify_all(atomic<_Tp> const* a) {
+        std::atomic_notify_all((const _Tp*)a);
+    }
+
+}
+}
+
+#else
+
+
 #include <cstdint>
 #include <climits>
 #include <cassert>
@@ -78,7 +108,7 @@ The strategy is chosen this way, by platform:
     #define __NO_FUTEX
     #define __NO_CONDVAR
     #ifndef __CUDACC__
-        #define __host__ 
+        #define __host__
         #define __device__
     #endif
     #define __ABI __host__ __device__
@@ -112,7 +142,7 @@ The strategy is chosen this way, by platform:
     #include <unistd.h>
     #include <linux/futex.h>
     #include <sys/syscall.h>
-    
+
     #define __FUTEX
     #define __FUTEX_TIMED
     #define __type_used_directly(_T) (std::is_same<typename std::remove_const< \
@@ -342,23 +372,28 @@ __ABI void __cxx_atomic_wait(_Tp const* ptr, _Tp const val, int order) {
 #include <atomic>
 
 namespace std {
+namespace experimental {
 
     template <class _Tp, class _Tv>
     __ABI void atomic_wait_explicit(atomic<_Tp> const* a, _Tv val, std::memory_order order) {
-        __cxx_atomic_wait((const _Tp*)a, (_Tp)val, (int)order);
+        ::__cxx_atomic_wait((const _Tp*)a, (_Tp)val, (int)order);
     }
     template <class _Tp, class _Tv>
     __ABI void atomic_wait(atomic<_Tp> const* a, _Tv val) {
-        atomic_wait_explicit(a, val, std::memory_order_seq_cst);
+        std::experimental::atomic_wait_explicit(a, val, std::memory_order_seq_cst);
     }
     template <class _Tp>
     __ABI void atomic_notify_one(atomic<_Tp> const* a) {
-        __cxx_atomic_notify_one((const _Tp*)a);
+        ::__cxx_atomic_notify_one((const _Tp*)a);
     }
     template <class _Tp>
     __ABI void atomic_notify_all(atomic<_Tp> const* a) {
-        __cxx_atomic_notify_all((const _Tp*)a);
+        ::__cxx_atomic_notify_all((const _Tp*)a);
     }
+
 }
+}
+
+#endif // __cpp_lib_atomic_wait
 
 #endif //__ATOMIC_WAIT_INCLUDED

@@ -22,8 +22,10 @@ THE SOFTWARE.
 
 */
 
-#include <atomic_wait>
-#include <barrier>
+#ifndef __cpp_lib_atomic_wait
+
+#include "cxxbackports/atomic_wait"
+#include "cxxbackports/barrier"
 #include <thread>
 
 #ifdef __TABLE
@@ -38,3 +40,5 @@ contended_t * __contention(volatile void const * p) {
 
 thread_local size_t __barrier_favorite_hash =
     std::hash<std::thread::id>()(std::this_thread::get_id());
+
+#endif

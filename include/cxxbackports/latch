@@ -26,6 +26,8 @@ THE SOFTWARE.
 
 namespace std {
 
+namespace experimental {
+
 class latch {
 public:
     constexpr explicit latch(ptrdiff_t expected) : counter(expected) { }
@@ -40,7 +42,7 @@ public:
         assert(old >= update);
 #ifndef __NO_WAIT
         if(old == update)
-            atomic_notify_all(&counter);
+            std::experimental::atomic_notify_all(&counter);
 #endif
     }
     inline bool try_wait() const noexcept {
@@ -49,10 +51,10 @@ public:
     inline void wait() const {
         while(1) {
             auto const current = counter.load(std::memory_order_acquire);
-            if(current == 0) 
+            if(current == 0)
                 return;
 #ifndef __NO_WAIT
-            atomic_wait_explicit(&counter, current, std::memory_order_relaxed)
+            std::experimental::atomic_wait_explicit(&counter, current, std::memory_order_relaxed)
 #endif
             ;
         }
@@ -66,4 +68,5 @@ private:
     std::atomic<ptrdiff_t> counter;
 };
 
+}
 }

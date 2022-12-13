@@ -24,23 +24,23 @@ THE SOFTWARE.
 
 #include <chrono>
 #include <atomic>
-#include <atomic_wait>
-#include <semaphore>
-#include <latch>
-#include <barrier>
+#include "cxxbackports/atomic_wait"
+#include "cxxbackports/semaphore"
+#include "cxxbackports/latch"
+#include "cxxbackports/barrier"
 
 struct mutex {
 	void lock() noexcept {
 		while (1 == l.exchange(1, std::memory_order_acquire))
 #ifndef __NO_WAIT
-			atomic_wait_explicit(&l, 1, std::memory_order_relaxed)
+			std::experimental::atomic_wait_explicit(&l, 1, std::memory_order_relaxed)
 #endif
             ;
 	}
 	void unlock() noexcept {
 		l.store(0, std::memory_order_release);
 #ifndef __NO_WAIT
-		atomic_notify_one(&l);
+		std::experimental::atomic_notify_one(&l);
 #endif
 	}
 	std::atomic<int> l = ATOMIC_VAR_INIT(0);
@@ -54,14 +54,14 @@ struct ticket_mutex {
             if(now == my)
                 return;
 #ifndef __NO_WAIT
-            atomic_wait_explicit(&out, now, std::memory_order_relaxed);
+            std::experimental::atomic_wait_explicit(&out, now, std::memory_order_relaxed);
 #endif
         }
 	}
 	void unlock() noexcept {
 		out.fetch_add(1, std::memory_order_release);
 #ifndef __NO_WAIT
-		atomic_notify_all(&out);
+		std::experimental::atomic_notify_all(&out);
 #endif
 	}
 	alignas(64) std::atomic<int> in = ATOMIC_VAR_INIT(0);
@@ -75,5 +75,5 @@ struct sem_mutex {
 	void unlock() noexcept {
         c.release();
 	}
-	std::binary_semaphore c = 1;
+	std::experimental::binary_semaphore c = 1;
 };
